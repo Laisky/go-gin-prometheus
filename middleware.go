@@ -107,13 +107,13 @@ type Prometheus struct {
 type PrometheusPushGateway struct {
 
 	// Push interval in seconds
-	PushIntervalSeconds time.Duration
+	PushInterval time.Duration
 
 	// Push Gateway URL in format http://domain:port
 	// where JOBNAME can be any string of your choice
 	PushGatewayURL string
 
-	// Local metrics URL where metrics are fetched from, this could be ommited in the future
+	// Local metrics URL where metrics are fetched from, this could be omitted in the future
 	// if implemented using prometheus common/expfmt instead
 	MetricsURL string
 
@@ -151,10 +151,10 @@ func NewPrometheus(subsystem string, customMetricsList ...[]*Metric) *Prometheus
 
 // SetPushGateway sends metrics to a remote pushgateway exposed on pushGatewayURL
 // every pushIntervalSeconds. Metrics are fetched from metricsURL
-func (p *Prometheus) SetPushGateway(pushGatewayURL, metricsURL string, pushIntervalSeconds time.Duration) {
+func (p *Prometheus) SetPushGateway(pushGatewayURL, metricsURL string, pushInterval time.Duration) {
 	p.Ppg.PushGatewayURL = pushGatewayURL
 	p.Ppg.MetricsURL = metricsURL
-	p.Ppg.PushIntervalSeconds = pushIntervalSeconds
+	p.Ppg.PushInterval = pushInterval
 	p.startPushTicker()
 }
 
@@ -211,11 +211,14 @@ func (p *Prometheus) runServer() {
 }
 
 func (p *Prometheus) getMetrics() []byte {
-	response, _ := http.Get(p.Ppg.MetricsURL)
-
+	response, err := http.Get(p.Ppg.MetricsURL)
+	if err != nil {
+		log.WithError(err).Errorf("get %s", p.Ppg.MetricsURL)
+		return nil
+	}
 	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
 
+	body, _ := ioutil.ReadAll(response.Body)
 	return body
 }
 
@@ -230,13 +233,19 @@ func (p *Prometheus) getPushGatewayURL() string {
 func (p *Prometheus) sendMetricsToPushGateway(metrics []byte) {
 	req, err := http.NewRequest("POST", p.getPushGatewayURL(), bytes.NewBuffer(metrics))
 	client := &http.Client{}
-	if _, err = client.Do(req); err != nil {
+	if err != nil {
+		log.WithError(err).Errorln("new request")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
 		log.WithError(err).Errorln("Error sending to push gateway")
 	}
+	defer resp.Body.Close()
 }
 
 func (p *Prometheus) startPushTicker() {
-	ticker := time.NewTicker(time.Second * p.Ppg.PushIntervalSeconds)
+	ticker := time.NewTicker(time.Second * p.Ppg.PushInterval)
 	go func() {
 		for range ticker.C {
 			p.sendMetricsToPushGateway(p.getMetrics())

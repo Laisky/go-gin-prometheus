@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mcuadros/go-gin-prometheus"
+	ginprometheus "github.com/Laisky/go-gin-prometheus"
 
 	"github.com/gin-gonic/gin"
 )
