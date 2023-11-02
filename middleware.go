@@ -17,6 +17,7 @@ import (
 var defaultMetricPath = "/metrics"
 
 // Standard default metrics
+//
 //	counter, counter_vec, gauge, gauge_vec,
 //	histogram, histogram_vec, summary, summary_vec
 var reqCnt = &Metric{
@@ -59,16 +60,16 @@ the cardinality of the request counter's "url" label, which might be required in
 For instance, if for a "/customer/:name" route you don't want to generate a time series for every
 possible customer name, you could use this function:
 
-func(c *gin.Context) string {
-	url := c.Request.URL.Path
-	for _, p := range c.Params {
-		if p.Key == "name" {
-			url = strings.Replace(url, p.Value, ":name", 1)
-			break
+	func(c *gin.Context) string {
+		url := c.Request.URL.Path
+		for _, p := range c.Params {
+			if p.Key == "name" {
+				url = strings.Replace(url, p.Value, ":name", 1)
+				break
+			}
 		}
+		return url
 	}
-	return url
-}
 
 which would map "/customer/alice" and "/customer/bob" to their template "/customer/:name".
 */
@@ -182,7 +183,7 @@ func (p *Prometheus) SetListenAddressWithRouter(listenAddress string, r *gin.Eng
 }
 
 // SetMetricsPath set metrics paths
-func (p *Prometheus) SetMetricsPath(e *gin.Engine) {
+func (p *Prometheus) SetMetricsPath(e gin.IRouter) {
 
 	if p.listenAddress != "" {
 		p.router.GET(p.MetricsPath, prometheusHandler())
@@ -193,7 +194,7 @@ func (p *Prometheus) SetMetricsPath(e *gin.Engine) {
 }
 
 // SetMetricsPathWithAuth set metrics paths with authentication
-func (p *Prometheus) SetMetricsPathWithAuth(e *gin.Engine, accounts gin.Accounts) {
+func (p *Prometheus) SetMetricsPathWithAuth(e gin.IRouter, accounts gin.Accounts) {
 
 	if p.listenAddress != "" {
 		p.router.GET(p.MetricsPath, gin.BasicAuth(accounts), prometheusHandler())
@@ -351,13 +352,13 @@ func (p *Prometheus) registerMetrics(subsystem string) {
 }
 
 // Use adds the middleware to a gin engine.
-func (p *Prometheus) Use(e *gin.Engine) {
+func (p *Prometheus) Use(e gin.IRouter) {
 	e.Use(p.HandlerFunc())
 	p.SetMetricsPath(e)
 }
 
 // UseWithAuth adds the middleware to a gin engine with BasicAuth.
-func (p *Prometheus) UseWithAuth(e *gin.Engine, accounts gin.Accounts) {
+func (p *Prometheus) UseWithAuth(e gin.IRouter, accounts gin.Accounts) {
 	e.Use(p.HandlerFunc())
 	p.SetMetricsPathWithAuth(e, accounts)
 }
